@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QFrame, QRadioButton,  QButtonGroup, QScrollArea, QStackedWidget)
+from PyQt5.QtWidgets import (QApplication, QComboBox, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMessageBox, QFrame, QRadioButton,  QButtonGroup, QScrollArea, QStackedWidget)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QPixmap
 import os
@@ -19,8 +19,11 @@ MBTI_QUESTIONS = [
     {"question": "你喜欢的生活方式是", "options": ["有计划有组织的", "灵活随性的"]}
 ] * 10  # 重复10次模拟40个问题
 
+
+
 class MBTITestPage(QWidget):
     test_completed = pyqtSignal(str)  # 测试完成信号，传递MBTI类型
+    
     
     def __init__(self):
         super().__init__()
@@ -83,28 +86,48 @@ class MBTITestPage(QWidget):
         # 加载第一个问题
         self.load_question(0)
     
+    # def load_question(self, index):
+    #     self.current_question = index
+    #     question_data = MBTI_QUESTIONS[index]
+        
+    #     self.question_label.setText(f"问题 {index + 1}: {question_data['question']}")
+    #     for i, option in enumerate(question_data['options']):
+    #         self.option_buttons[i].setText(option)
+    #         self.option_buttons[i].setChecked(False)
+        
+    #     # 更新进度
+    #     self.progress_label.setText(f"问题 {index + 1}/{len(MBTI_QUESTIONS)}")
+        
+    #     # 更新按钮状态
+    #     self.prev_btn.setEnabled(index > 0)
+    #     if index == len(MBTI_QUESTIONS) - 1:
+    #         self.next_btn.setText("完成测试")
+    #     else:
+    #         self.next_btn.setText("下一题")
+    
     def load_question(self, index):
         self.current_question = index
         question_data = MBTI_QUESTIONS[index]
         
         self.question_label.setText(f"问题 {index + 1}: {question_data['question']}")
+        
+        self.button_group.setExclusive(False)
         for i, option in enumerate(question_data['options']):
             self.option_buttons[i].setText(option)
-            self.option_buttons[i].setChecked(False)
-        
-        # 更新进度
+            #self.option_buttons[i].setChecked(False)
+        self.button_group.setExclusive(True)
+
         self.progress_label.setText(f"问题 {index + 1}/{len(MBTI_QUESTIONS)}")
-        
-        # 更新按钮状态
         self.prev_btn.setEnabled(index > 0)
-        if index == len(MBTI_QUESTIONS) - 1:
-            self.next_btn.setText("完成测试")
-        else:
-            self.next_btn.setText("下一题")
-    
+        self.next_btn.setText("完成测试" if index == len(MBTI_QUESTIONS) - 1 else "下一题")
+
+
     def prev_question(self):
         if self.current_question > 0:
             self.load_question(self.current_question - 1)
+
+    
+    
     
     def next_question(self):
         selected = self.button_group.checkedId()
@@ -129,6 +152,128 @@ class MBTITestPage(QWidget):
         mbti_type = random.choice(MBTI_TYPES)
         self.test_completed.emit(mbti_type)
 
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+from PyQt5.QtCore import QUrl, QTimer
+from PyQt5.QtWidgets import QSlider
+class RelaxingPage(QWidget):
+    back_to_home = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.setLayout(QVBoxLayout())
+
+        self.player = QMediaPlayer()
+        self.playlist = [
+            {"title": "轻音乐 - 呼吸放松", "file": "assets/music/relax1.mp3"},
+            {"title": "自然之声 - 海浪", "file": "assets/music/relax2.mp3"},
+            {"title": "背景钢琴 - 冥想", "file": "assets/music/relax3.mp3"}
+        ]
+        self.current_index = 0
+
+        # 标题
+        title = QLabel("🎵 放松一下")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50;")
+        self.layout().addWidget(title)
+
+        # 歌曲选择下拉框
+        self.combo = QComboBox()
+        self.combo.setFixedWidth(300)
+        self.combo.addItems([track["title"] for track in self.playlist])
+        self.combo.currentIndexChanged.connect(self.select_track)
+        self.layout().addWidget(self.combo, alignment=Qt.AlignCenter)
+
+        # 歌曲名称
+        self.track_label = QLabel()
+        self.track_label.setAlignment(Qt.AlignCenter)
+        self.track_label.setStyleSheet("font-size: 16px; margin-top: 10px;")
+        self.layout().addWidget(self.track_label)
+
+        # 播放控制按钮
+        btn_row = QHBoxLayout()
+        self.prev_btn = QPushButton("⏮️")
+        self.play_btn = QPushButton("▶️")
+        self.next_btn = QPushButton("⏭️")
+        for btn in [self.prev_btn, self.play_btn, self.next_btn]:
+            btn.setFixedSize(60, 40)
+            btn.setStyleSheet("font-size: 18px; background-color: #3498db; color: white; border-radius: 6px;")
+            btn_row.addWidget(btn, alignment=Qt.AlignCenter)
+        self.layout().addLayout(btn_row)
+
+        # 播放进度
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setRange(0, 0)
+        self.layout().addWidget(self.slider)
+
+        # 时间
+        self.time_label = QLabel("00:00 / 00:00")
+        self.time_label.setAlignment(Qt.AlignCenter)
+        self.layout().addWidget(self.time_label)
+
+        # 返回按钮
+        self.back_btn = QPushButton("🔙 返回主页")
+        self.back_btn.setFixedHeight(40)
+        self.back_btn.setStyleSheet("font-size: 14px; background-color: #95a5a6; color: white; border-radius: 6px;")
+        self.back_btn.clicked.connect(lambda: self.back_to_home.emit())
+        self.layout().addWidget(self.back_btn, alignment=Qt.AlignCenter)
+
+        # 连接事件
+        self.prev_btn.clicked.connect(self.play_previous)
+        self.play_btn.clicked.connect(self.toggle_play)
+        self.next_btn.clicked.connect(self.play_next)
+        self.slider.sliderMoved.connect(self.seek_position)
+        self.player.positionChanged.connect(self.update_position)
+        self.player.durationChanged.connect(self.update_duration)
+
+        # 加载第一首
+        self.load_track(0)
+
+    def format_time(self, ms):
+        s = ms // 1000
+        return f"{s//60:02}:{s%60:02}"
+
+    def load_track(self, index):
+        track = self.playlist[index]
+        self.track_label.setText(f"当前播放：{track['title']}")
+        path = os.path.abspath(track["file"])
+        if os.path.exists(path):
+            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+            self.player.play()
+            self.play_btn.setText("⏸️")
+        else:
+            self.track_label.setText(f"❌ 文件不存在: {track['file']}")
+
+    def toggle_play(self):
+        if self.player.state() == QMediaPlayer.PlayingState:
+            self.player.pause()
+            self.play_btn.setText("▶️")
+        else:
+            self.player.play()
+            self.play_btn.setText("⏸️")
+
+    def play_next(self):
+        self.current_index = (self.current_index + 1) % len(self.playlist)
+        self.combo.setCurrentIndex(self.current_index)
+
+    def play_previous(self):
+        self.current_index = (self.current_index - 1 + len(self.playlist)) % len(self.playlist)
+        self.combo.setCurrentIndex(self.current_index)
+
+    def select_track(self, index):
+        self.current_index = index
+        self.load_track(index)
+
+    def update_position(self, position):
+        self.slider.setValue(position)
+        duration = self.player.duration()
+        self.time_label.setText(f"{self.format_time(position)} / {self.format_time(duration)}")
+
+    def update_duration(self, duration):
+        self.slider.setRange(0, duration)
+
+    def seek_position(self, pos):
+        self.player.setPosition(pos)
 
 class MentalHealthApp(QMainWindow):
     def __init__(self):
@@ -146,9 +291,15 @@ class MentalHealthApp(QMainWindow):
         self.mbti_test_page = MBTITestPage()
         self.mbti_test_page.test_completed.connect(self.show_mbti_result)
         self.stack.addWidget(self.mbti_test_page)
+        self.relaxing_page = RelaxingPage()
+        self.relaxing_page.back_to_home.connect(lambda: self.stack.setCurrentWidget(self.main_page))
+        self.stack.addWidget(self.relaxing_page)
+
         
         # 结果页面
         self.mbti_result_page = None
+
+
 
     def create_main_page(self):
         page = QWidget()
@@ -197,7 +348,7 @@ class MentalHealthApp(QMainWindow):
         buttons = [
             ("MBTI性格自测", self.start_mbti_test),
             ("减压技巧", self.show_relaxation_tips),
-            ("专业帮助", self.show_professional_help)
+            ("放松一下", self.relaxing_page)
         ]
         
         for text, callback in buttons:
@@ -239,7 +390,11 @@ class MentalHealthApp(QMainWindow):
                               "3. 正念冥想 - 关注当下感受\n"
                               "4. 轻度运动 - 散步或瑜伽\n"
                               "5. 艺术创作 - 绘画或音乐")
-    
+        
+
+    def relaxing_page(self):
+        self.stack.setCurrentWidget(self.relaxing_page)
+
     def show_professional_help(self):
         QMessageBox.information(self, "专业帮助", 
                               "如需专业心理咨询:\n\n"
@@ -289,13 +444,21 @@ class MentalHealthApp(QMainWindow):
         self.stack.addWidget(result_page)
         self.stack.setCurrentWidget(result_page)
         
+
+
+
+
 if __name__ == "__main__":
+    
+
     app = QApplication([])
     app.setStyle("Fusion")
+    with open("mbti-program\\style.qss", "r", encoding="utf-8") as f:
+        app.setStyleSheet(f.read())
     
     # 设置全局字体
-    font = QFont("Microsoft YaHei", 10)
-    app.setFont(font)
+    
+
     
     window = MentalHealthApp()
     window.show()

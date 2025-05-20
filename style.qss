@@ -1,0 +1,130 @@
+/* 通用字体 */
+* {
+    font-family: "Noto Sans SC", "Segoe UI", sans-serif;
+
+}
+
+/* 主窗口背景 */
+QMainWindow {
+    background-color: #f8f9fa;
+}
+
+/* 标题样式 */
+QLabel#MainTitle, QLabel#ResultTitle {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* 子标题样式 */
+QLabel#SubTitle {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+/* 问题标签 */
+QLabel#QuestionLabel {
+    font-size: 16px;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* 选项按钮样式（勾选框效果） */
+QRadioButton {
+    font-size: 14px;
+    color: #333;
+    padding: 6px 0px 6px 28px;
+}
+
+/* 未选择：边框圆圈 */
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    border: 2px solid #3498db;
+    background-color: white;
+}
+
+/* 鼠标悬停：加深边框 */
+QRadioButton::indicator:hover {
+    border: 2px solid #2980b9;
+}
+/* 选中：蓝色圆圈 + 白色打勾图标 */
+QRadioButton::indicator:checked {
+    background-color: #3498db;
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    image: url(assets/icons/checkmark.png); /* 注意相对路径 */
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+
+/* 主功能按钮 */
+QPushButton {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+}
+QPushButton:hover {
+    background-color: #2980b9;
+}
+QPushButton:pressed {
+    background-color: #2471a3;
+    padding-top: 2px;
+    padding-bottom: -2px;
+}
+
+QPushButton:disabled {
+    background-color: #bdc3c7;
+    color: #eeeeee;
+    border: none;
+    border-radius: 8px;
+    opacity: 0.7;
+}
+
+
+/* 滚动条美化 */
+QScrollBar:vertical {
+    border: none;
+    background: #eee;
+    width: 10px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical {
+    background: #bbb;
+    min-height: 20px;
+    border-radius: 5px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #999;
+}
+
+/* 进度标签 */
+QLabel#ProgressLabel {
+    font-size: 14px;
+    color: #888;
+}
+
+/* 页面卡片容器 */
+QWidget#Card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid #ddd;
+}
+
+/* QMessageBox 内容字体 */
+QMessageBox QLabel {
+    font-size: 14px;
+}
+
+/* 边框线 */
+QFrame#line {
+    border-bottom: 2px solid #3498db;
+    margin-bottom: 10px;
+}
