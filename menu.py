@@ -346,7 +346,7 @@ class DoubaoChatWidget(QWidget):
         
         # 初始问候
         self.show_message("豆包助手", "你好！我是智能心理咨询助手，有什么可以帮助你的吗？")
-    
+    # 气泡可以显示的版本
     # def show_message(self, sender, message):
     #     """在对话窗口中显示消息，使用微信风格的气泡"""
     #     timestamp = QDateTime.currentDateTime().toString("hh:mm")
