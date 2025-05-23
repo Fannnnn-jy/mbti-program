@@ -519,9 +519,9 @@ class MentalHealthApp(QMainWindow):
 
         # 更新图片显示
         if self.current_mbti_type:
-            pixmap_path = f"mbti-program/asset/mbti-icons/demo_{self.current_mbti_type}.png"
+            pixmap_path = f"asset/mbti-icons/demo_{self.current_mbti_type}.png"
         else:
-            pixmap_path = "mbti-program/asset/mbti-icons/16-personalities.png"  # 默认图片
+            pixmap_path = "asset/mbti-icons/16-personalities.png"  # 默认图片
 
         pixmap = QPixmap(pixmap_path)
         if not pixmap.isNull():
@@ -591,9 +591,9 @@ class MentalHealthApp(QMainWindow):
         # 动态加载图片
         self.load_saved_mbti()  # 加载历史结果
         if self.current_mbti_type:
-            pixmap_path = f"mbti-program/asset/mbti-icons/demo_{self.current_mbti_type}.png"
+            pixmap_path = f"asset/mbti-icons/demo_{self.current_mbti_type}.png"
         else:
-            pixmap_path = "mbti-program/asset/mbti-icons/16-personalities.png"  # 默认图片
+            pixmap_path = "asset/mbti-icons/16-personalities.png"  # 默认图片
         
         pixmap = QPixmap(pixmap_path)
         if not pixmap.isNull():
@@ -732,7 +732,7 @@ class MentalHealthApp(QMainWindow):
     
         # 加载类型图片
         icon_label = QLabel()
-        icon_path = f"mbti-program/asset/mbti-icons/demo_{mbti_type}.png"
+        icon_path = f"asset/mbti-icons/demo_{mbti_type}.png"
         pixmap = QPixmap(icon_path)
         if not pixmap.isNull():
             pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -789,7 +789,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
     app.setStyle("Fusion")
-    with open("mbti-program\\style.qss", "r", encoding="utf-8") as f:
+    with open("style.qss", "r", encoding="utf-8") as f:
         app.setStyleSheet(f.read())
     
     # 设置全局字体
