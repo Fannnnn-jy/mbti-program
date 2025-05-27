@@ -2,10 +2,10 @@ from PyQt5.QtWidgets import (QApplication, QComboBox, QMainWindow, QWidget, QVBo
                             QHBoxLayout, QLabel, QPushButton, QMessageBox, QFrame, QRadioButton, 
                             QButtonGroup, QScrollArea, QStackedWidget, QTextEdit, QLineEdit, QSlider)
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QTimer, QDateTime
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtGui import QFont, QPixmap, QTransform, QPainter, QBitmap, QImage, QIcon
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 import os
-import random
+from PIL import Image
 CURRENT_TYPE = None
 
 from openai import OpenAI
@@ -200,6 +200,7 @@ class MBTITestPage(QWidget):
 
     def __init__(self, questions):
         super().__init__()
+        
         self.current_question = 0
         self.answers = []
         self.scores = {
@@ -339,12 +340,17 @@ class MBTITestPage(QWidget):
             f.write(mbti_type)  # 直接写入类型字符串（如"ENFP"）    
         self.test_completed.emit(mbti_type)
 
+import sys
+import os
+import glob
+import vlc
+from downloader import GeQuHaiPlayer
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel, QComboBox,
+    QPushButton, QHBoxLayout, QSlider
+)
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 
-
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtCore import QUrl, QTimer
-from PyQt5.QtWidgets import QSlider
 class RelaxingPage(QWidget):
     back_to_home = pyqtSignal()
 
@@ -352,13 +358,25 @@ class RelaxingPage(QWidget):
         super().__init__()
         self.setLayout(QVBoxLayout())
 
-        self.player = QMediaPlayer()
-        self.playlist = [
-            {"title": "轻音乐 - 呼吸放松", "file": "assets/music/relax1.mp3"},
-            {"title": "自然之声 - 海浪", "file": "assets/music/relax2.mp3"},
-            {"title": "背景钢琴 - 冥想", "file": "assets/music/relax3.mp3"}
-        ]
+        # VLC 初始化
+        self.vlc_instance = vlc.Instance()
+        self.player = self.vlc_instance.media_player_new()
+
+        self.playlist = []
         self.current_index = 0
+
+        audio_patterns = ('*.mp3', '*.aac')
+
+        self.music_folder = 'asset/music'
+        audio_files = []
+        for pat in audio_patterns:
+            audio_files.extend(glob.glob(os.path.join(self.music_folder, pat)))
+        if audio_files:
+            for path in audio_files:
+                title = os.path.splitext(os.path.basename(path))[0]
+                self.playlist.append({"title": title, "file": path})
+        else:
+            print("未找到音频文件！")
 
         # 标题
         title = QLabel("🎵 放松一下")
@@ -366,75 +384,231 @@ class RelaxingPage(QWidget):
         title.setStyleSheet("font-size: 20px; font-weight: bold; color: #2c3e50;")
         self.layout().addWidget(title)
 
-        # 歌曲选择下拉框
+
+        # 左右分栏演示
+        content_row = QHBoxLayout()
+        content_row.setSpacing(20)
+
+        content_row.setContentsMargins(150, 0, 0, 0)
+
+        # 左侧：图片演示
+        self.pic_size = 300
+        self.pic_label = QLabel()
+        default_pix = QPixmap("asset/music/demo.png").scaled(self.pic_size, self.pic_size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+        # 圆形 mask
+        mask = QBitmap(self.pic_size, self.pic_size)
+        mask.fill(Qt.color0)
+        painter = QPainter(mask)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(Qt.color1)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(0, 0, self.pic_size, self.pic_size)
+        painter.end()
+        default_pix.setMask(mask)
+        
+        self.default_pixmap = default_pix
+        self.orig_pixmap = default_pix 
+
+        # 把 QLabel 加到布局里
+        content_row.addWidget(self.pic_label)
+        self.pic_label.setPixmap(self.orig_pixmap)
+
+        # pic = QPixmap("asset/icons/checkmark.png")
+        # size = 300
+        # pic_label.setPixmap(
+        #     pic.scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        # )
+        # content_row.addWidget(pic_label)
+
+        # 右侧：选曲 + 刷新 + 播放标签
+        right_box = QVBoxLayout()
+        right_box.setSpacing(0)
+
+        right_box.addSpacing(100)
+
+        # 下拉框+刷新按钮行
+        h = QHBoxLayout()
         self.combo = QComboBox()
         self.combo.setFixedWidth(300)
-        self.combo.addItems([track["title"] for track in self.playlist])
         self.combo.currentIndexChanged.connect(self.select_track)
-        self.layout().addWidget(self.combo, alignment=Qt.AlignCenter)
+        h.addWidget(self.combo)
+
+        self.refresh_btn = QPushButton("🔄")
+        self.refresh_btn.setFixedSize(30, 30)
+        self.refresh_btn.setStyleSheet(
+            "font-size:12px;"
+            "background-color:#2ecc71;"
+            "color:white;"
+            "border-radius:4px;"
+        )
+        self.refresh_btn.clicked.connect(self.refresh_playlist)
+        h.addWidget(self.refresh_btn)
+
+        right_box.addLayout(h)
 
         # 歌曲名称
         self.track_label = QLabel()
         self.track_label.setAlignment(Qt.AlignCenter)
-        self.track_label.setStyleSheet("font-size: 16px; margin-top: 10px;")
-        self.layout().addWidget(self.track_label)
+        self.track_label.setStyleSheet("font-size: 16px;")
+        right_box.addWidget(self.track_label)
 
-        # 播放控制按钮
-        btn_row = QHBoxLayout()
-        self.prev_btn = QPushButton("⏮️")
-        self.play_btn = QPushButton("▶️")
-        self.next_btn = QPushButton("⏭️")
-        for btn in [self.prev_btn, self.play_btn, self.next_btn]:
-            btn.setFixedSize(60, 40)
-            btn.setStyleSheet("font-size: 18px; background-color: #3498db; color: white; border-radius: 6px;")
-            btn_row.addWidget(btn, alignment=Qt.AlignCenter)
-        self.layout().addLayout(btn_row)
+        content_row.addLayout(right_box)
+        self.layout().addLayout(content_row)
 
-        # 播放进度
+        # 进度条
         self.slider = QSlider(Qt.Horizontal)
-        self.slider.setRange(0, 0)
-        self.layout().addWidget(self.slider)
+        self.slider.setRange(0, 1000)
+        # self.layout().addWidget(self.slider)
 
         # 时间
         self.time_label = QLabel("00:00 / 00:00")
         self.time_label.setAlignment(Qt.AlignCenter)
-        self.layout().addWidget(self.time_label)
+        self.time_label.setStyleSheet("font-size: 14px; margin-left: 8px;")
 
-        # 返回按钮
+        h_slider = QHBoxLayout()
+        h_slider.addStretch(1)
+        h_slider.addWidget(self.slider, 8)
+        h_slider.addWidget(self.time_label, 2)
+        self.layout().addLayout(h_slider)
+
+
+
+        btn_row = QHBoxLayout()
+
         self.back_btn = QPushButton("🔙 返回主页")
         self.back_btn.setFixedHeight(40)
         self.back_btn.setStyleSheet("font-size: 14px; background-color: #95a5a6; color: white; border-radius: 6px;")
-        self.back_btn.clicked.connect(lambda: self.back_to_home.emit())
-        self.layout().addWidget(self.back_btn, alignment=Qt.AlignCenter)
+        btn_row.addWidget(self.back_btn, alignment=Qt.AlignCenter)
+
+        # 播放控制按钮
+        self.prev_btn = QPushButton("⏮️")
+        self.play_btn = QPushButton("▶️")
+        self.next_btn = QPushButton("⏭️")
+        for btn in [self.prev_btn, self.play_btn, self.next_btn]:
+            btn.setFixedSize(80, 80)
+            btn.setStyleSheet("font-size: 18px; background-color: #3498db; color: white; border-radius: 6px;")
+            btn_row.addWidget(btn, alignment=Qt.AlignCenter)
+
+
+        self.search_btn = QPushButton("🔍 搜一搜")
+        self.search_btn.setFixedHeight(40)
+        self.search_btn.setStyleSheet("font-size: 14px; background-color: #2ecc71; color: white; border-radius: 6px;")
+        self.search_btn.clicked.connect(self.open_search_window)
+        btn_row.addWidget(self.search_btn, alignment=Qt.AlignCenter)
+
+        self.layout().addLayout(btn_row)
+
+    
 
         # 连接事件
+        self.back_btn.clicked.connect(lambda: self.back_to_home.emit())
         self.prev_btn.clicked.connect(self.play_previous)
         self.play_btn.clicked.connect(self.toggle_play)
         self.next_btn.clicked.connect(self.play_next)
         self.slider.sliderMoved.connect(self.seek_position)
-        self.player.positionChanged.connect(self.update_position)
-        self.player.durationChanged.connect(self.update_duration)
 
+        # 定时器更新进度
+        self.timer = QTimer()
+        self.timer.setInterval(500)
+        self.timer.timeout.connect(self.update_position)
+        self.timer.start()
+
+        self.refresh_playlist()
         # 加载第一首
-        self.load_track(0)
+        if self.playlist:
+            self.load_track(0)
+        else:
+            self.track_label.setText("❌ 没有找到可播放的文件")
 
+    
+
+    
+    def open_search_window(self):
+        self.search_window = GeQuHaiPlayer()
+        self.search_window.setWindowTitle("歌曲海下载器")
+        self.search_window.resize(500, 400)
+        self.search_window.setWindowIcon(QIcon("asset/icons/gequhai.png"))
+        self.search_window.show()
+
+    def refresh_playlist(self):
+        """手动扫描目录，更新 self.playlist 和下拉框"""
+        audio_patterns = ('*.mp3', '*.aac')
+        files = []
+        for pat in audio_patterns:
+            files += glob.glob(os.path.join(self.music_folder, pat))
+
+        self.player.pause()
+        self.play_btn.setText("▶️")
+
+        self.combo.blockSignals(True)
+        self.playlist.clear()
+        self.combo.clear()
+
+        for path in files:
+            title = os.path.splitext(os.path.basename(path))[0]
+            self.playlist.append({'title': title, 'file': path})
+            self.combo.addItem(title)
+
+        self.combo.blockSignals(False)
+        if self.playlist:
+            self.current_index = 0
+            self.combo.setCurrentIndex(0)
+            self.load_track(0)
+        else:
+            self.track_label.setText("❌ 没有找到可播放的文件")
+
+        
     def format_time(self, ms):
         s = ms // 1000
-        return f"{s//60:02}:{s%60:02}"
+        return f"{s // 60:02}:{s % 60:02}"
 
     def load_track(self, index):
         track = self.playlist[index]
         self.track_label.setText(f"当前播放：{track['title']}")
+        
+        jpg_path = os.path.join(self.music_folder, f"{track['title']}.jpg")
+        jpg_path = os.path.normpath(jpg_path)
+        abs_path = jpg_path.replace("\\", "/")
+
+        if os.path.exists(jpg_path):
+            img = Image.open(abs_path).convert("RGBA")
+            w, h = img.size
+            data = img.tobytes("raw", "RGBA")
+
+            
+            qimg = QImage(data, w, h, QImage.Format_RGBA8888)
+            pix  = QPixmap.fromImage(qimg)
+            
+            mask = QBitmap(self.pic_size, self.pic_size)
+            mask.fill(Qt.color0)
+            painter = QPainter(mask)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setBrush(Qt.color1)
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(0, 0, self.pic_size, self.pic_size)
+            painter.end()
+
+            pix = pix.scaled(self.pic_size, self.pic_size,Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
+            pix.setMask(mask)
+
+            self.orig_pixmap = pix
+            
+        else:
+            self.orig_pixmap = self.default_pixmap
+        self.pic_label.setPixmap(self.orig_pixmap)
+
         path = os.path.abspath(track["file"])
         if os.path.exists(path):
-            self.player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
-            self.player.play()
-            self.play_btn.setText("⏸️")
+            self.player.stop()
+            media = self.vlc_instance.media_new(path, 'file-caching=300')
+            self.player.set_media(media)
+            # self.player.play()
+            # self.play_btn.setText("⏸️")
         else:
             self.track_label.setText(f"❌ 文件不存在: {track['file']}")
 
     def toggle_play(self):
-        if self.player.state() == QMediaPlayer.PlayingState:
+        if self.player.is_playing():
             self.player.pause()
             self.play_btn.setText("▶️")
         else:
@@ -444,25 +618,67 @@ class RelaxingPage(QWidget):
     def play_next(self):
         self.current_index = (self.current_index + 1) % len(self.playlist)
         self.combo.setCurrentIndex(self.current_index)
+        self.player.play()
+        self.play_btn.setText("⏸️")
 
     def play_previous(self):
         self.current_index = (self.current_index - 1 + len(self.playlist)) % len(self.playlist)
         self.combo.setCurrentIndex(self.current_index)
+        self.player.play()
+        self.play_btn.setText("⏸️")
 
     def select_track(self, index):
         self.current_index = index
-        self.load_track(index)
+        if 0 <= index < len(self.playlist):
+            self.load_track(index)
+            self.player.pause()
+            self.play_btn.setText("▶️")
 
-    def update_position(self, position):
-        self.slider.setValue(position)
-        duration = self.player.duration()
-        self.time_label.setText(f"{self.format_time(position)} / {self.format_time(duration)}")
+    def update_position(self):
+        state = self.player.get_state()
+        if self.player.is_playing():
+            pos = self.player.get_time()
+            total = self.player.get_length()
+            if total > 0:
+                progress = int(pos / total * 1000)
+                self.slider.setValue(progress)
+                self.time_label.setText(f"{self.format_time(pos)} / {self.format_time(total)}")
 
-    def update_duration(self, duration):
-        self.slider.setRange(0, duration)
+                angle = ((pos % 120000) / 120000) * 360
+                transform = QTransform()
+                transform.translate(self.pic_size/2, self.pic_size/2)
+                transform.rotate(angle)
+                transform.translate(-self.pic_size/2, -self.pic_size/2)
+                rotated_full = self.orig_pixmap.transformed(transform, Qt.SmoothTransformation)
 
-    def seek_position(self, pos):
-        self.player.setPosition(pos)
+                w, h = rotated_full.width(), rotated_full.height()
+                x = (w - self.pic_size) // 2
+                y = (h - self.pic_size) // 2
+                cropped = rotated_full.copy(x, y, self.pic_size, self.pic_size)
+
+                self.pic_label.setPixmap(cropped)
+        if state == vlc.State.Ended:
+            self.current_index = (self.current_index + 1) % len(self.playlist)
+            self.combo.setCurrentIndex(self.current_index)
+            self.load_track(self.current_index)
+            self.slider.setValue(0)
+            self.time_label.setText("00:00 / 00:00")
+            self.player.play()
+            
+            self.play_btn.setText("⏸️")
+
+    def seek_position(self, value):
+        total = self.player.get_length()    
+        if total > 0:
+            target = int(total * value / 1000)
+            self.player.set_time(target)
+        if total == value:
+            self.player.stop()
+            self.play_btn.setText("▶️")
+
+
+
+
 
 
 class DoubaoChatWidget(QWidget):
@@ -479,7 +695,7 @@ class DoubaoChatWidget(QWidget):
         
         # 标题栏
         title_layout = QHBoxLayout()
-        title_label = QLabel(" 智能心理咨询")
+        title_label = QLabel("智能心理咨询")
 
         title_label.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
         
@@ -701,6 +917,7 @@ class MentalHealthApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("心理健康助手")
         self.setFixedSize(1000, 600)
+        self.setWindowIcon(QIcon("asset/icons/main_icon.png"))
         self.current_mbti_type = None  # 初始化MBTI类型存储属性（新增）
         self.load_saved_mbti()  # 加载历史结果（新增）
         # 新增选择题库：
@@ -868,9 +1085,9 @@ class MentalHealthApp(QMainWindow):
         
         # 功能按钮
         buttons = [
-            ("MBTI性格自测", self.show_test_selection),
-            ("与豆包聊聊", self.show_doubao_chat),
-            ("放松一下", self.show_relaxing_page)
+            ("MBTI性格自测->", self.show_test_selection),
+            ("与豆包聊聊qwq", self.show_doubao_chat),
+            ("听音乐放松一下~", self.show_relaxing_page)
         ]
         
         for text, callback in buttons:
