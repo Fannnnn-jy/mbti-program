@@ -52,7 +52,7 @@ class GeQuHaiPlayer(QWidget):
         self.status_label = QLabel("准备就绪")
         self.layout.addWidget(self.status_label)
 
-        self.vlc_instance = vlc.Instance()
+        self.vlc_instance = self.vlc_instance = vlc.Instance('--quiet', '--no-video')
         self.player = self.vlc_instance.media_player_new()
 
         self.song_map = {}  # display text → (title, song_id, play_url)
@@ -80,41 +80,73 @@ class GeQuHaiPlayer(QWidget):
         self.init_driver()
 
         try:
-            search_url = f"https://www.gequhai.com/s/{keyword}"
+            search_url = f"https://www.gequhai.net/s/{keyword}"
             self.driver.get(search_url)
-            time.sleep(2)
+            # 等待列表出现
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div.col-8.col-content a.music-link"))
+            )
 
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-            song_rows = soup.select('table tbody tr')
+            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+            # 1) 找到所有歌曲链接
+            links = soup.select("div.col-8.col-content a.music-link")
 
             self.result_combo.clear()
             self.song_map.clear()
 
-            for row in song_rows:
-                try:
-                    link = row.select_one('td:nth-of-type(2) > a')
-                    artist_td = row.select_one('td:nth-of-type(3)')
-                    if not link or not artist_td:
-                        continue
+            for a in links:
+                title = a.get_text(strip=True)
+                href  = a["href"]                      # "/music/4190"
+                song_id = href.rsplit("/", 1)[-1]      # "4190"
 
-                    title = link.get_text(strip=True)
-                    artist = artist_td.get_text(strip=True)
-                    href = link.get('href')
-                    full_url = f"https://www.gequhai.com{href}"
-                    song_id = href.split('/')[-1]  # 提取 ID，例如 /play/142 → 142
+                # 2) 找到同一行里的艺术家
+                row = a.find_parent("div", class_="row")
+                artist_div = row.select_one("div.col-4.col-content")
+                artist = artist_div.get_text(strip=True) if artist_div else ""
 
-                    display = f"{title} - {artist}"
-                    self.song_map[display] = (title, song_id, full_url)
-                    self.result_combo.addItem(display)
+                display = f"{title} - {artist}"
+                full_url = f"https://www.gequhai.net{href}"
 
-                except Exception as e:
-                    print(f"跳过一行（错误: {e}）")
-                    continue
+                self.song_map[display] = (title, song_id, full_url)
+                self.result_combo.addItem(display)
 
             if self.song_map:
                 self.status_label.setText(f"找到 {len(self.song_map)} 首歌曲")
             else:
                 self.status_label.setText("未找到歌曲")
+                # self.status_label.setText("未找到歌曲, 开始尝试搜索gequhai.com")    # deprecated
+                # search_url = f"https://www.gequhai.com/s/{keyword}"
+                # self.driver.get(search_url)
+                # # 等待列表出现
+                # WebDriverWait(self.driver, 10).until(
+                #     EC.presence_of_element_located((By.CSS_SELECTOR, "div.col-8.col-content a.music-link"))
+                # )
+
+                # soup = BeautifulSoup(self.driver.page_source, "html.parser")
+
+                # links = soup.select("div.col-8.col-content a.music-link")
+
+                # self.result_combo.clear()
+                # self.song_map.clear()
+
+                # for a in links:
+                #     title = a.get_text(strip=True)
+                #     href  = a["href"]                      # "/music/4190"
+                #     song_id = href.rsplit("/", 1)[-1]      # "4190"
+
+                #     row = a.find_parent("div", class_="row")
+                #     artist_div = row.select_one("div.col-4.col-content")
+                #     artist = artist_div.get_text(strip=True) if artist_div else ""
+
+                #     display = f"{title} - {artist}"
+                #     full_url = f"https://www.gequhai.com{href}"
+
+                #     self.song_map[display] = (title, song_id, full_url)
+                #     self.result_combo.addItem(display)
+                #     if self.song_map:
+                #         self.status_label.setText(f"找到 {len(self.song_map)} 首歌曲")
+                #     else:
+                #         self.status_label.setText("未找到歌曲")
 
         except Exception as e:
             self.status_label.setText(f"搜索失败: {e}")
@@ -246,37 +278,78 @@ class GeQuHaiPlayer(QWidget):
 
     #     return None
 
+    # def get_album_cover_url(self, song_id):
+    #     try:
+    #         self.init_driver()
+    #         page_url = f'https://www.gequhai.com/play/{song_id}'
+    #         self.driver.get(page_url)
+
+    #         # 等待 .aplayer-pic 出现
+    #         wait = WebDriverWait(self.driver, 10)
+    #         pic_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "aplayer-pic")))
+
+    #         # 1) style.background-image 
+    #         cover_style = pic_div.value_of_css_property("background-image")
+    #         if cover_style and cover_style != "none":
+    #             m = re.match(r'url\(["\']?(.*?)["\']?\)', cover_style)
+    #             if m:
+    #                 cover_url = m.group(1)
+    #                 print(f"通过 aplayer-pic style 拿到封面链接：{cover_url}")
+    #                 return cover_url
+
+    #         # 2) fallback: <meta property="og:image">
+    #         cover_url = self.driver.execute_script("""
+    #             let m = document.querySelector('meta[property="og:image"]');
+    #             return m ? m.content : null;
+    #         """)
+    #         if cover_url:
+    #             print(f"通过 meta 标签拿到封面链接：{cover_url}")
+    #             return cover_url
+
+    #         # 3) fallback: APlayer 全局变量
+    #         cover_url = self.driver.execute_script("""
+    #             try { return ap.list.audios[0].cover } catch(e) { return null }
+    #         """)
+    #         if cover_url:
+    #             print(f"通过 APlayer 全局变量拿到封面链接：{cover_url}")
+    #             return cover_url
+
+    #         print("页面中未找到封面链接")
+    #     except Exception as e:
+    #         print(f"Selenium 抓取封面链接失败: {e}")
+
+    #     return None
+
     def get_album_cover_url(self, song_id):
         try:
             self.init_driver()
-            page_url = f'https://www.gequhai.com/play/{song_id}'
+            page_url = f'https://www.gequhai.net/music/{song_id}'
             self.driver.get(page_url)
 
             # 等待 .aplayer-pic 出现
             wait = WebDriverWait(self.driver, 10)
-            pic_div = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "aplayer-pic")))
+            pic_div = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, ".aplayer-pic")))
 
-            # 1) style.background-image 
-            cover_style = pic_div.value_of_css_property("background-image")
-            if cover_style and cover_style != "none":
-                m = re.match(r'url\(["\']?(.*?)["\']?\)', cover_style)
-                if m:
-                    cover_url = m.group(1)
-                    print(f"通过 aplayer-pic style 拿到封面链接：{cover_url}")
-                    return cover_url
+            # 1) 从 style 属性里解析 background-image
+            style_attr = pic_div.get_attribute("style") or ""
+            m = re.search(r'background-image\s*:\s*url\(\s*["\']?(.*?)["\']?\s*\)', style_attr, re.IGNORECASE)
+            if m:
+                cover_url = m.group(1)
+                print(f"通过 style 属性拿到封面链接：{cover_url}")
+                return cover_url
 
             # 2) fallback: <meta property="og:image">
             cover_url = self.driver.execute_script("""
-                let m = document.querySelector('meta[property="og:image"]');
-                return m ? m.content : null;
+                const m = document.querySelector('meta[property="og:image"]');
+                return m ? m.getAttribute('content') : null;
             """)
             if cover_url:
-                print(f"通过 meta 标签拿到封面链接：{cover_url}")
+                print(f"通过 meta 拿到封面链接：{cover_url}")
                 return cover_url
 
-            # 3) fallback: APlayer 全局变量
+            # 3) 再 fallback: APlayer 全局变量
             cover_url = self.driver.execute_script("""
-                try { return ap.list.audios[0].cover } catch(e) { return null }
+                try { return ap.list.audios[0].cover } catch(e) { return null; }
             """)
             if cover_url:
                 print(f"通过 APlayer 全局变量拿到封面链接：{cover_url}")
@@ -288,11 +361,10 @@ class GeQuHaiPlayer(QWidget):
 
         return None
 
-
     def get_mp3_url_via_page(self, song_id):
         try:
             self.init_driver()
-            page_url = f'https://www.gequhai.com/play/{song_id}'
+            page_url = f'https://www.gequhai.net/music/{song_id}'
             self.driver.get(page_url)
             time.sleep(2)
 
@@ -348,7 +420,8 @@ class GeQuHaiPlayer(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     # 要测试的歌曲链接
-    test_url = 'https://www.gequhai.com/play/139'
+    # test_url = 'https://www.gequhai.com/play/139'
+    test_url = 'https://www.gequhai.net/music/4190'
     song_id = test_url.strip('/').split('/')[-1]
 
     # 初始化下载器实例（不启动 UI）

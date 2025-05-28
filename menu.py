@@ -359,7 +359,7 @@ class RelaxingPage(QWidget):
         self.setLayout(QVBoxLayout())
 
         # VLC 初始化
-        self.vlc_instance = vlc.Instance()
+        self.vlc_instance = vlc.Instance('--quiet', '--no-video')
         self.player = self.vlc_instance.media_player_new()
 
         self.playlist = []
