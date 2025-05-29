@@ -263,6 +263,12 @@ class MBTITestPage(QWidget):
         self.next_btn.setStyleSheet("background-color: #3498db; color: white;")
         self.next_btn.clicked.connect(self.next_question)
         btn_container.layout().addWidget(self.next_btn)
+        
+        # 新增退出按钮
+        self.exit_btn = QPushButton("退出测试")
+        self.exit_btn.setStyleSheet("background-color: #e74c3c; color: white; margin-left: 10px;")
+        self.exit_btn.clicked.connect(self.exit_test)
+        btn_container.layout().addWidget(self.exit_btn)
 
         # 加载第一个问题
         self.load_question(0)
@@ -271,11 +277,25 @@ class MBTITestPage(QWidget):
         question_data = self.MBTI_QUESTIONS[index]
 
         self.question_label.setText(f"问题 {index + 1}: {question_data['question']}")
+        
+        # 重置选项按钮
+        self.button_group.setExclusive(False)
+        for btn in self.option_buttons:
+            btn.setChecked(False)
+        self.button_group.setExclusive(True)
 
         self.button_group.setExclusive(False)
         for i, option in enumerate(question_data['options']):
             self.option_buttons[i].setText(option)
         self.button_group.setExclusive(True)
+
+        # 自动选中已保存的答案（关键新增）
+        if index < len(self.answers):
+            saved_answer = self.answers[index]
+            if saved_answer == 'A':
+                self.option_buttons[0].setChecked(True)
+            else:
+                self.option_buttons[1].setChecked(True)
 
         self.progress_label.setText(f"问题 {index + 1}/{len(self.MBTI_QUESTIONS)}")
         self.prev_btn.setEnabled(index > 0)
@@ -308,6 +328,16 @@ class MBTITestPage(QWidget):
             self.complete_test()
         else:
             self.load_question(self.current_question + 1)
+
+    # 新增: 退出测试方法
+    def exit_test(self):
+        """处理退出测试逻辑"""
+        reply = QMessageBox.question(self, '确认退出', '是否要退出当前测试？',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            # 返回主页面
+            self.parent().stack.setCurrentWidget(self.parent().main_page)
+
 
     def complete_test(self):
         # 确定MBTI类型
@@ -996,9 +1026,10 @@ class MentalHealthApp(QMainWindow):
     def show_test_selection(self):
         # 创建自定义弹窗
         msg = QMessageBox()
+        msg.setWindowIcon(QIcon("asset/icons/selection.png"))
         msg.setWindowTitle("选择测试类型")
         msg.setText("请选择测试类型：")
-        msg.setInformativeText("完整版：93题，约18分钟（更准确）\n精简版：28题，约10分钟（较快速）")
+        msg.setInformativeText("完整版：93题，约18分钟（更准确）\n精简版：28题，约5分钟（较快速）")
         
         # 添加按钮（QMessageBox.CustomButton保证顺序）
         full_btn = msg.addButton("完整版", QMessageBox.AcceptRole)
@@ -1083,9 +1114,14 @@ class MentalHealthApp(QMainWindow):
         """)
         right_layout.addWidget(title)
         
+        # 功能按钮子布局（关键调整：按钮添加到子布局而非主布局）
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(45)  # 按钮垂直间距（可根据需求调整）
+        button_layout.setContentsMargins(20, 15, 20, 15)  # 子布局内边距（左右20，上下15）      
+        
         # 功能按钮
         buttons = [
-            ("MBTI性格自测->", self.show_test_selection),
+            ("MBTI性格自测>>>", self.show_test_selection),
             ("与豆包聊聊qwq", self.show_doubao_chat),
             ("听音乐放松一下~", self.show_relaxing_page)
         ]
@@ -1093,13 +1129,13 @@ class MentalHealthApp(QMainWindow):
         for text, callback in buttons:
             btn = QPushButton(text)
             btn.setFont(QFont("Microsoft YaHei", 14))
-            btn.setFixedHeight(50)
+            btn.setFixedSize(280, 55)
             btn.setStyleSheet("""
                 QPushButton {
                     background-color: #3498db;
                     color: white;
                     border: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     min-width: 250px;
                 }
                 QPushButton:hover {
@@ -1107,9 +1143,9 @@ class MentalHealthApp(QMainWindow):
                 }
             """)
             btn.clicked.connect(callback)
-            right_layout.addWidget(btn, alignment=Qt.AlignCenter)
-            right_layout.addSpacing(20)
+            button_layout.addWidget(btn, alignment=Qt.AlignCenter)
         
+        right_layout.addLayout(button_layout)  # 底部填充
         right_layout.addStretch()
         layout.addWidget(right_frame)
         
@@ -1132,115 +1168,91 @@ class MentalHealthApp(QMainWindow):
         self.update_main_image()
         
         
+        # 暂存修改：
+        
         result_page = QWidget()
-        main_layout = QVBoxLayout()  # 主垂直布局
-        result_page.setLayout(main_layout)
-    
-        # 内容区域（水平布局，左右居中）
-        content_layout = QHBoxLayout()
-        content_layout.setContentsMargins(50, 30, 50, 30)
-        main_layout.addLayout(content_layout)
-    
-        # 左侧文字区域（居中）
-        text_panel = QWidget()
-        text_layout = QVBoxLayout()
-        text_layout.setAlignment(Qt.AlignCenter)  # 文字内容居中
-        text_panel.setLayout(text_layout)
-    
-        # 类型标题
-        title = QLabel(f"您的MBTI类型是: {mbti_type}")
-        title.setFont(QFont("Microsoft YaHei", 24, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #2c3e50; margin-bottom: 30px;")
-        text_layout.addWidget(title)
-    
-        # 类型描述
+        # 主布局改为水平分栏（左侧描述+右侧图片）
+        main_layout = QHBoxLayout(result_page)
+        main_layout.setContentsMargins(50, 30, 50, 30)  # 调整整体边距
+        main_layout.setSpacing(40)  # 左右栏间距
+
+        # 左侧描述区域（垂直布局）
+        left_container = QVBoxLayout()
+        main_layout.addLayout(left_container)
+
+        # 人格类型标题（左侧顶部）
+        title = QLabel(f"你的MBTI类型：{mbti_type}")
+        title.setStyleSheet("font-size: 30px; font-weight: bold; color: #2c3e50; margin-bottom: 20px;")
+        # 左侧居中添加控件
+        left_container.addWidget(title, alignment=Qt.AlignLeft | Qt.AlignHCenter)
+
+        # 人格描述文本框（左侧下方）
         description = MBTI_Descriptions.get(mbti_type, {})
         desc_text = description.get("description", "未找到该类型的描述")
-        desc = QLabel(desc_text)
-        desc.setWordWrap(True)
-        desc.setFont(QFont("Microsoft YaHei", 10))
-        desc.setStyleSheet("""
-            margin: 0 20px; 
-            max-width: 400px;
-            min-height: 150px;
-            """)  # 限制最大宽度
-        text_layout.addWidget(desc)
-        text_layout.addStretch()  # 保持内容居中
-    
-        # 右侧图片区域（居中）
-        image_panel = QWidget()
-        image_layout = QVBoxLayout()
-        image_layout.setAlignment(Qt.AlignCenter)  # 图片内容居中
-        image_panel.setLayout(image_layout)
-    
-        # 加载类型图片
-        icon_label = QLabel()
-        icon_path = f"asset/mbti-icons/demo_{mbti_type}.png"
-        pixmap = QPixmap(icon_path)
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            icon_label.setPixmap(pixmap)
-        else:
-            icon_label.setText("图片加载失败")
-            icon_label.setStyleSheet("color: red; font-size: 14px;")
-        image_layout.addWidget(icon_label)
-        image_layout.addStretch()  # 保持内容居中
-    
-        # 添加左右面板到内容区域
-        content_layout.addWidget(text_panel)
-        content_layout.addWidget(image_panel)
-        content_layout.setStretch(0, 1)  # 左右各占1份空间
-        content_layout.setStretch(1, 1)
-    
-        # 返回按钮（底部居中）
-        btn_container = QWidget()
-        btn_layout = QVBoxLayout()
-        btn_container.setLayout(btn_layout)
-        
-        # # 豆包分析按钮
-        # analyze_btn = QPushButton("让豆包分析我的性格")
-        # analyze_btn.setFont(QFont("Microsoft YaHei", 14))
-        # analyze_btn.setFixedHeight(50)
-        # analyze_btn.setStyleSheet("""
-        #     QPushButton {
-        #         background-color: #3498db;
-        #         color: white;
-        #         border: none;
-        #         border-radius: 8px;
-        #         min-width: 200px;
-        #     }
-        # """)
-        # analyze_btn.clicked.connect(lambda: self.analyze_mbti_with_doubao(mbti_type))
-        # layout.addWidget(analyze_btn, alignment=Qt.AlignCenter)
-        
-        # 返回按钮
-        back_btn = QPushButton("返回主页")
-        back_btn.setFont(QFont("Microsoft YaHei", 14))
-        back_btn.setFixedHeight(50)
-        back_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                min-width: 200px;
+        description_edit = QTextEdit(desc_text.strip())
+        description_edit.setReadOnly(True)
+        description_edit.setMinimumWidth(250)  # 左侧描述区宽度
+        description_edit.setStyleSheet("""
+            QTextEdit {
+                font-size: 18px;
+                color: #333;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 15px;
+                background-color: #f9f9f9;
             }
-            QPushButton:hover { background-color: #2980b9; }
         """)
-        
-        back_btn.clicked.connect(lambda: [self.stack.setCurrentWidget(self.main_page),
-                                          self.update_main_image()  # 返回时再次刷新（确保文件已写入）
-                                          ]
-                                )
-        btn_layout.addWidget(back_btn, alignment=Qt.AlignCenter)
-        btn_layout.addSpacing(20)  # 底部留空
-    
-        main_layout.addWidget(btn_container)
-        main_layout.addStretch()  # 按钮固定在底部
-    
+        left_container.addWidget(description_edit)
+
+        # 右侧图片区域（垂直布局，用于居中图片）
+        right_container = QVBoxLayout()
+        main_layout.addLayout(right_container)
+
+        # 结果图片（右侧居中显示）
+        result_pic = QLabel()
+        pic_path = f"asset/mbti-icons/demo_{mbti_type}.png"
+        if os.path.exists(pic_path):
+            pixmap = QPixmap(pic_path).scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        else:
+            # 无对应图片时使用默认图片
+            pixmap = QPixmap("asset/mbti-icons/default.png").scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        # 应用圆形遮罩（与音乐页面图片样式保持一致）
+        mask = QBitmap(300, 300)
+        painter = QPainter(mask)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(Qt.color1)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(0, 0, 300, 300)
+        painter.end()
+        pixmap.setMask(mask)
+        result_pic.setPixmap(pixmap)
+        right_container.addWidget(result_pic, alignment=Qt.AlignCenter)  # 图片垂直居中
+
+        # 底部按钮（保持原有并排样式，添加到左侧或右侧均可，这里添加到左侧）
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setSpacing(20)
+        left_container.addWidget(btn_container, alignment=Qt.AlignCenter)  # 按钮在左侧底部居中
+
+        # "问问小鲸鱼"按钮
+        ask_btn = QPushButton("问问小鲸鱼")
+        ask_btn.setFixedSize(200, 50)
+        ask_btn.setStyleSheet("background-color: #07c160; color: white; border-radius: 8px; font-size: 18px;")
+        ask_btn.clicked.connect(lambda: self.stack.setCurrentWidget(self.doubao_chat))
+        btn_layout.addWidget(ask_btn)
+
+        # "返回主页"按钮
+        back_btn = QPushButton("返回主页")
+        back_btn.setFixedSize(200, 50)
+        back_btn.setStyleSheet("background-color: #3498db; color: white; border-radius: 8px; font-size: 18px;")
+        back_btn.clicked.connect(lambda: [self.stack.setCurrentWidget(self.main_page), self.update_main_image()])
+        btn_layout.addWidget(back_btn)
+
         self.stack.addWidget(result_page)
-        self.stack.setCurrentWidget(result_page)
+        self.stack.setCurrentWidget(result_page)        
+        
+        
+
 
     def analyze_mbti_with_doubao(self, mbti_type):
         """使用豆包API分析MBTI类型"""
