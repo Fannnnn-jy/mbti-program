@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import (QApplication, QComboBox, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QComboBox, QMainWindow, QWidget, QVBoxLayout, QGridLayout,
                             QHBoxLayout, QLabel, QPushButton, QMessageBox, QFrame, QRadioButton, 
                             QButtonGroup, QScrollArea, QStackedWidget, QTextEdit, QLineEdit, QSlider)
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QTimer, QDateTime
@@ -218,7 +218,7 @@ class MBTITestPage(QWidget):
         # 顶部进度条
         self.progress_label = QLabel(f"问题 1/{len(self.MBTI_QUESTIONS)}")
         self.progress_label.setAlignment(Qt.AlignCenter)
-        self.progress_label.setStyleSheet("font-size: 14px; color: #555;")
+        self.progress_label.setStyleSheet("font-size: 18px; color: #555;")
         self.layout().addWidget(self.progress_label)
 
         # 滚动区域
@@ -235,7 +235,7 @@ class MBTITestPage(QWidget):
         # 问题标签
         self.question_label = QLabel()
         self.question_label.setWordWrap(True)
-        self.question_label.setStyleSheet("font-size: 16px; margin-bottom: 20px;")
+        self.question_label.setStyleSheet("font-size: 20px; margin-bottom: 20px;")
         container.layout().addWidget(self.question_label)
 
         # 选项按钮组
@@ -244,7 +244,7 @@ class MBTITestPage(QWidget):
 
         for i in range(2):  # 每个问题2个选项
             rb = QRadioButton()
-            rb.setStyleSheet("font-size: 14px; margin-bottom: 10px;")
+            rb.setStyleSheet("font-size: 18px; margin-bottom: 10px;")
             container.layout().addWidget(rb)
             self.option_buttons.append(rb)
             self.button_group.addButton(rb, i)
@@ -332,7 +332,7 @@ class MBTITestPage(QWidget):
     # 新增: 退出测试方法
     def exit_test(self):
         """处理退出测试逻辑"""
-        reply = QMessageBox.question(self, '确认退出', '是否要退出当前测试？',
+        reply = QMessageBox.question(self, '确认退出', '当前测试进度无法保留\n\n是否要退出当前测试？',
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             # 返回主页面
@@ -941,6 +941,103 @@ class DoubaoChatWidget(QWidget):
         reply_content = response.choices[0].message.content
         self.show_message("豆包助手", reply_content)  # 只显示内容部分
 
+# 以下是我关于mzr部分的尝试：class QuestionPopup(QWidget):
+class QuestionPopup(QWidget):
+    """常见问题选择弹窗"""
+    back_to_main = pyqtSignal()  # 返回主界面信号
+    goto_chat = pyqtSignal(str)   # 跳转对话信号（参数为预填问题）
+
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("常见问题")
+        self.setFixedSize(600, 400)
+        self.setStyleSheet("background-color: white; border-radius: 15px;")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # 顶部关闭栏
+        top_layout = QHBoxLayout()
+        close_btn = QPushButton("返回")
+        close_btn.setFixedSize(80, 35)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                border: none;
+                border-radius: 15px;
+                background-color: #e74c3c;
+                color: white;
+                font-size: 15px;
+            }
+            QPushButton:hover { background-color: #c0392b; }
+        """)
+        close_btn.clicked.connect(self.back_to_main.emit)
+        top_layout.addStretch()
+        top_layout.addWidget(close_btn)
+        layout.addLayout(top_layout)
+
+        # 常见问题标题
+        title = QLabel("常见问题")
+        title.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title)
+
+        # 问题按钮容器（使用流式布局）
+        question_layout = QGridLayout()
+        question_layout.setSpacing(20)
+        # 添加水平拉伸确保有足够空间显示按钮
+        question_layout.setContentsMargins(30, 10, 30, 10)  # 增加左右边距
+        # 增加容器最大宽度限制（根据窗口大小调整）
+        question_container = QWidget()
+        question_container.setMaximumWidth(540)  # 600窗口宽度 - 左右边距各30
+        question_container.setLayout(question_layout)
+        layout.addWidget(question_container, alignment=Qt.AlignCenter)  # 居中显示 
+               
+        common_questions = [
+            "MBTI测试结果如何解读？", 
+            "最近压力很大该怎么缓解？", 
+            "如何改善睡眠质量？", 
+            "社交焦虑该怎么办？"
+        ]
+
+        # 创建圆形问题按钮
+        for idx, question in enumerate(common_questions):
+            btn = QPushButton(question)
+            btn.setFixedSize(200, 40)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    border: 2px solid #3498db;  /* 蓝色边框 */
+                    background-color: #f0f8ff;  /* 浅蓝背景 */
+                    font-size: 14px;
+                    color: #2c3e50;  /* 深灰文字（与背景对比明显） */
+                }}
+                QPushButton:hover {{ 
+                    background-color: #e3f2fd;  /* 更浅的悬停背景 */
+                    border-color: #2980b9;  /* 深一点的边框 */
+                }}
+            """)
+            btn.clicked.connect(lambda _, q=question: (self.goto_chat.emit(q), self.close()))
+            question_layout.addWidget(btn, idx // 2, idx % 2)  # 每行2个
+
+        # 直接对话按钮
+        direct_btn = QPushButton("直接开始对话")
+        direct_btn.setFixedSize(200, 40)
+        direct_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #07c160;  /* 绿色背景 */
+                color: white;  /* 白色文字（高对比度） */
+                border: none;
+                font-size: 16px;
+                font-weight: 500;  /* 文字加粗更清晰 */
+            }
+            QPushButton:hover { 
+                background-color: #05a14e;  /* 深绿悬停 */
+            }
+        """)
+        direct_btn.clicked.connect(lambda: (self.goto_chat.emit(""), self.close()))
+        layout.addWidget(direct_btn, alignment=Qt.AlignCenter)
 
 class MentalHealthApp(QMainWindow):
     def __init__(self):
@@ -1108,6 +1205,7 @@ class MentalHealthApp(QMainWindow):
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             color: #2c3e50; 
+            margin-top: 30px;
             margin-bottom: 30px;
             padding-bottom: 10px;
             border-bottom: 2px solid #3498db;
@@ -1117,7 +1215,7 @@ class MentalHealthApp(QMainWindow):
         # 功能按钮子布局（关键调整：按钮添加到子布局而非主布局）
         button_layout = QVBoxLayout()
         button_layout.setSpacing(45)  # 按钮垂直间距（可根据需求调整）
-        button_layout.setContentsMargins(20, 15, 20, 15)  # 子布局内边距（左右20，上下15）      
+        button_layout.setContentsMargins(20, 10, 20, 15)  # 子布局内边距（左右20，上10，下15）      
         
         # 功能按钮
         buttons = [
@@ -1128,7 +1226,9 @@ class MentalHealthApp(QMainWindow):
         
         for text, callback in buttons:
             btn = QPushButton(text)
-            btn.setFont(QFont("Microsoft YaHei", 14))
+            font = QFont("Microsoft YaHei", 13)
+            font.setItalic(True)  # 设置斜体
+            btn.setFont(font)
             btn.setFixedSize(280, 55)
             btn.setStyleSheet("""
                 QPushButton {
@@ -1152,10 +1252,31 @@ class MentalHealthApp(QMainWindow):
         return page
 
 
-    
+    '''   
     def show_doubao_chat(self):
         """显示豆包对话窗口"""
         self.stack.setCurrentWidget(self.doubao_chat)
+    '''  
+    
+      
+    '''以下是我关于mzr部分的尝试'''
+    def show_doubao_chat(self):
+        """显示豆包对话前先显示问题弹窗"""
+        self.question_popup = QuestionPopup()
+        self.question_popup.back_to_main.connect(lambda: self.stack.setCurrentWidget(self.main_page))
+        self.question_popup.goto_chat.connect(self.handle_chat_question)
+        self.question_popup.show()  # 显示弹窗
+
+    def handle_chat_question(self, question):
+        """处理弹窗传递的问题"""
+        # 填充问题并跳转对话界面
+        self.stack.setCurrentWidget(self.doubao_chat)
+        if question:
+            self.doubao_chat.message_input.setText(question)
+            self.doubao_chat.send_message()  # 自动发送问题    
+    '''尝试结束'''
+    
+    
     
     def show_relaxing_page(self):
         """显示放松音乐页面"""
