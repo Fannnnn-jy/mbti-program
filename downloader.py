@@ -11,7 +11,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 import re
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -97,7 +97,11 @@ class GeQuHaiPlayer(QWidget):
             for a in links:
                 title = a.get_text(strip=True)
                 href  = a["href"]                      # "/music/4190"
-                song_id = href.rsplit("/", 1)[-1]      # "4190"
+                # print(f"找到歌曲: {title}, 链接: {href}")
+                qs = urlparse(href).query
+                params = parse_qs(qs)
+                song_id = params["song_id"][0]
+                # song_id = href.rsplit("/", 1)[-1]      # "4190"
 
                 # 2) 找到同一行里的艺术家
                 row = a.find_parent("div", class_="row")
@@ -107,7 +111,10 @@ class GeQuHaiPlayer(QWidget):
                 display = f"{title} - {artist}"
                 full_url = f"https://www.gequhai.net{href}"
 
+                # print(f"找到歌曲 id: {song_id},  链接: {full_url}")
+
                 self.song_map[display] = (title, song_id, full_url)
+                # print(f"添加到结果列表: {full_url}, {display}")
                 self.result_combo.addItem(display)
 
             if self.song_map:
@@ -184,8 +191,9 @@ class GeQuHaiPlayer(QWidget):
             self.status_label.setText("请先选择歌曲")
             return
 
-        title, song_id, _ = self.song_map[selected]
-        play_url = self.get_mp3_url_via_page(song_id)
+        title, song_id, full_url = self.song_map[selected]
+        print(f"准备下载歌曲: {title} (ID: {song_id})")
+        play_url = self.get_mp3_url_via_page(full_url)
         if not play_url:
             self.status_label.setText("获取下载链接失败")
             return
@@ -323,7 +331,8 @@ class GeQuHaiPlayer(QWidget):
     def get_album_cover_url(self, song_id):
         try:
             self.init_driver()
-            page_url = f'https://www.gequhai.net/music/{song_id}'
+            page_url = f'https://www.gequhai.net/search_music?song_id={song_id}'
+            print(f"正在访问页面：{page_url}")
             self.driver.get(page_url)
 
             # 等待 .aplayer-pic 出现
@@ -361,10 +370,11 @@ class GeQuHaiPlayer(QWidget):
 
         return None
 
-    def get_mp3_url_via_page(self, song_id):
+    def get_mp3_url_via_page(self, page_url):
         try:
             self.init_driver()
-            page_url = f'https://www.gequhai.net/music/{song_id}'
+            # page_url = f'https://www.gequhai.net/search_music?song_id={song_id}'
+            print(f"正在访问页面：{page_url}")
             self.driver.get(page_url)
             time.sleep(2)
 
@@ -421,9 +431,10 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     # 要测试的歌曲链接
     # test_url = 'https://www.gequhai.com/play/139'
-    test_url = 'https://www.gequhai.net/music/4190'
-    song_id = test_url.strip('/').split('/')[-1]
-
+    # test_url = 'https://www.gequhai.net/search_music?song_id=150284073'
+    # song_id = test_url.strip('/').split('/')[-1]
+    song_id = '150284073'
+    
     # 初始化下载器实例（不启动 UI）
     player = GeQuHaiPlayer()
 
