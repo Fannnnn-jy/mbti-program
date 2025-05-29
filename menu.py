@@ -184,7 +184,7 @@ class MBTITestPage(QWidget):
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             # 返回主页面
-            self.parent().stack.setCurrentWidget(self.parent().main_page)
+            self.parent().setCurrentWidget(self.parent().widget(0))
 
 
     def complete_test(self):
