@@ -819,7 +819,7 @@ class QuestionPopup(QWidget):
         layout.addWidget(question_container, alignment=Qt.AlignCenter)  # 居中显示 
                
         common_questions = [
-            "MBTI测试结果如何解读？", 
+            "我的MBTI测试结果如何解读？", 
             "最近压力很大该怎么缓解？", 
             "如何改善睡眠质量？", 
             "社交焦虑该怎么办？"
@@ -828,7 +828,7 @@ class QuestionPopup(QWidget):
         # 创建圆形问题按钮
         for idx, question in enumerate(common_questions):
             btn = QPushButton(question)
-            btn.setFixedSize(220, 40)
+            btn.setFixedSize(230, 40)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     border: 2px solid #3498db;  /* 蓝色边框 */
@@ -841,6 +841,10 @@ class QuestionPopup(QWidget):
                     border-color: #2980b9;  /* 深一点的边框 */
                 }}
             """)
+            if idx == 0:
+                with open("user_mbti.txt", "r", encoding="utf-8") as f:
+                    mbti_str = f.read().strip()  # 读取并去除首尾空白
+                question += f"（我的MBTI类型是：{mbti_str}）"
             btn.clicked.connect(lambda _, q=question: (self.goto_chat.emit(q), self.close()))
             question_layout.addWidget(btn, idx // 2, idx % 2)  # 每行2个
 
