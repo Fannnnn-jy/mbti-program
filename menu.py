@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QApplication, QComboBox, QMainWindow, QWidget, QVBoxLayout, QGridLayout,
                             QHBoxLayout, QLabel, QPushButton, QMessageBox, QFrame, QRadioButton, 
-                            QButtonGroup, QScrollArea, QStackedWidget, QTextEdit, QLineEdit, QSlider)
+                            QButtonGroup, QScrollArea, QStackedWidget, QTextEdit, QLineEdit, QSlider, QSizePolicy)
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QTimer, QDateTime
 from PyQt5.QtGui import QFont, QPixmap, QTransform, QPainter, QBitmap, QImage, QIcon
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -556,30 +556,25 @@ class RelaxingPage(QWidget):
 
 
 
-
-
-
 class DoubaoChatWidget(QWidget):
-    """豆包API对话窗口"""
-    back_to_main = pyqtSignal()  # 添加返回主页面的信号
-
+    back_to_main = pyqtSignal()
     def __init__(self):
         super().__init__()
         self.init_ui()
-        
+
     def init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)  # 设置边距
-        
+        layout.setContentsMargins(10, 10, 10, 10)
+
         # 标题栏
         title_layout = QHBoxLayout()
         title_label = QLabel("智能心理咨询")
 
         title_label.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
-        
+
         # 关闭按钮
         close_btn = QPushButton("×")
-        close_btn.setFixedSize(30,30)
+        close_btn.setFixedSize(30, 30)
         close_btn.setStyleSheet("""
             QPushButton {
                 border: none;
@@ -595,26 +590,33 @@ class DoubaoChatWidget(QWidget):
         """)
         close_btn.clicked.connect(self.return_to_main)
 
-        
-        title_layout.addStretch() 
+        title_layout.addStretch()
         title_layout.addWidget(title_label, alignment=Qt.AlignmentFlag.AlignCenter)  # 标题居中
         title_layout.addStretch()  # 伸缩空间（让标题真正居中）
         title_layout.addWidget(close_btn)
 
-        
         layout.addLayout(title_layout)
+
+
+        # 滚动区域（聊天内容 + 提示按钮）
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; }")
         
-        # 对话显示区域
-        self.chat_display = QTextEdit()
-        self.chat_display.setReadOnly(True)
-        self.chat_display.setStyleSheet("""
-            background-color: #f0f0f0;
-            border-radius: 8px;
-            padding: 10px;
-            font-size: 14px;
-        """)
-        layout.addWidget(self.chat_display)
+        # 聊天内容容器
+        self.chat_container = QWidget()
+        self.chat_layout = QVBoxLayout(self.chat_container)
+        self.chat_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.chat_layout.setContentsMargins(0, 0, 0, 0)
+        # 初始问候
+        self.show_message("小鲸鱼", "你好！我是智能心理咨询助手小鲸鱼，有什么可以帮助你的吗？")
         
+        # 初始提示按钮（嵌入聊天区）
+        self.add_hint_buttons()
+        
+        self.scroll_area.setWidget(self.chat_container)
+        layout.addWidget(self.scroll_area)
+
         # 输入区域
         input_layout = QHBoxLayout()
         self.message_input = QLineEdit()
@@ -628,7 +630,7 @@ class DoubaoChatWidget(QWidget):
         """)
         self.message_input.returnPressed.connect(self.send_message)
         input_layout.addWidget(self.message_input)
-                
+
         self.send_btn = QPushButton("↑")  # 使用更标准的箭头符号
         self.send_btn.setFixedSize(50, 50)
         self.send_btn.setStyleSheet("""
@@ -639,7 +641,7 @@ class DoubaoChatWidget(QWidget):
                 border-radius: 25px;
                 font-size: 24px;
                 font-weight: 900;
-                padding-bottom: 12px;  
+                padding-bottom: 12px;
             }
             QPushButton:hover {
                 background-color: #05a14e;
@@ -647,147 +649,120 @@ class DoubaoChatWidget(QWidget):
         """)
         self.send_btn.clicked.connect(self.send_message)
         input_layout.addWidget(self.send_btn)
-        
+
         layout.addLayout(input_layout)
+
+
         
-        # 初始问候
-        self.show_message("豆包助手", "你好！我是智能心理咨询助手，有什么可以帮助你的吗？")
-    # 气泡可以显示的版本
-    # def show_message(self, sender, message):
-    #     """在对话窗口中显示消息，使用微信风格的气泡"""
-    #     timestamp = QDateTime.currentDateTime().toString("hh:mm")
-        
-    #     if sender == "你":
-    #         # 用户消息（右对齐）
-    #         self.chat_display.append(f"""
-    #             <div style="text-align: right; margin: 12px 0;">
-    #                 <div style="display: inline-block; text-align: right; margin-right: 12px;">
-    #                     <span style="font-size: 13px; color: #666;">{timestamp}</span>
-    #                     <div style="display: inline-block; background-color: #07c160; color: white; 
-    #                                 border-radius: 20px; padding: 14px 20px; min-height: 42px; margin-top: 6px;
-    #                                 width: fit-content; max-width: 75%; word-wrap: break-word; position: relative;
-    #                                 font-size: 20px; line-height: 1.4;">  <!-- 字体大小调整为20px -->
-    #                         {message}
-    #                         <div style="position: absolute; right: -8px; top: 14px; 
-    #                                     width: 0; height: 0; border-top: 8px solid transparent; 
-    #                                     border-left: 16px solid #07c160; border-bottom: 8px solid transparent;"></div>
-    #                     </div>
-    #                 </div>
-    #                 <img src="path/to/user/avatar.png" style="width: 48px; height: 48px; 
-    #                         border-radius: 50%; vertical-align: top;" />
-    #             </div>
-    #         """)
-    #     else:
-    #         # AI消息（左对齐）
-    #         self.chat_display.append(f"""
-    #             <div style="text-align: left; margin: 12px 0;">
-    #                 <img src="path/to/ai/avatar.png" style="width: 48px; height: 48px; 
-    #                         border-radius: 50%; vertical-align: top;" />
-    #                 <div style="display: inline-block; text-align: left; margin-left: 12px;">
-    #                     <div style="font-size: 18px; font-weight: bold; color: #333;">{sender}</div>
-    #                     <span style="font-size: 13px; color: #666;">{timestamp}</span>
-    #                     <div style="display: inline-block; background-color: white; color: #333; 
-    #                                 border-radius: 20px; padding: 14px 20px; min-height: 42px; margin-top: 6px;
-    #                                 width: fit-content;max-width: 75%; word-wrap: break-word; position: relative;
-    #                                 box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    #                                 font-size: 20px; line-height: 1.4;">  <!-- 字体大小调整为20px -->
-    #                         {message}
-    #                         <div style="position: absolute; left: -8px; top: 14px; 
-    #                                     width: 0; height: 0; border-top: 8px solid transparent; 
-    #                                     border-right: 16px solid white; border-bottom: 8px solid transparent;"></div>
-    #                     </div>
-    #                 </div>
-    #             </div>
-    #         """)
+
+    def add_hint_buttons(self):
+        hints = [
+            "我最近情绪低落，该如何调整？→",
+            "工作压力大，有什么缓解方法？→",
+            "如何改善人际关系？→",
+        ]
+        for hint in hints:
+            btn = QPushButton(hint)
+            btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            btn.setFixedHeight(60)  # 仅固定高度，宽度自适应
+            btn.setStyleSheet("""
+                QPushButton {
+                    margin: 1px 15px;
+                    padding: 1px 15px;
+                    border: 1px solid #eee;
+                    border-radius: 12px;
+                    background-color: #f9f9f9;
+                    color: #333;
+                    font-size: 20px;
+                    text-align: left;
+                    
+                }
+                QPushButton:hover {
+                    border: 5px solid #eee;
+                }
+            """)
+            btn.clicked.connect(lambda _, q=hint: self.send_hint(q[:-1]))
+            self.chat_layout.addWidget(btn)
+
+    def send_hint(self, question):
+        self.message_input.setText(question)
+        self.send_message()  # 复用发送逻辑
 
     def show_message(self, sender, message):
-        """在对话窗口中显示消息，使用微信风格的气泡"""
         timestamp = QDateTime.currentDateTime().toString("hh:mm")
-        
+        frame = QFrame()
+        frame.setStyleSheet("""
+            QFrame {
+                margin: 15px 8px;
+                padding: 24px 30px;
+                border-radius: 12px;
+            }
+        """)
+        frame.setProperty("sender", sender)
         if sender == "你":
-            # 用户消息（右对齐）
-            self.chat_display.append(f"""
-                <div style="text-align: right; margin: 12px 0; overflow: hidden;">  <!-- 添加overflow:hidden -->
-                    <div style="display: inline-block; text-align: right; margin-right: 12px;">
-                        <span style="font-size: 13px; color: #666;">{timestamp}</span>
-                        <div style="display: inline-block; background-color: #07c160; color: white; 
-                                    border-radius: 20px; padding: 14px 20px; margin-top: 6px;
-                                    min-width: 40px;  <!-- 最小宽度 -->
-                                    max-width: 75%;  <!-- 最大宽度 -->
-                                    word-wrap: break-word; position: relative;
-                                    font-size: 20px; line-height: 1.4;
-                                    box-sizing: border-box;  <!-- 确保内边距包含在尺寸内 -->
-                                    vertical-align: top;">  <!-- 垂直对齐顶部 -->
-                            {message}
-                            <div style="position: absolute; right: -8px; top: 16px;  <!-- 微调位置 -->
-                                        width: 0; height: 0; border-top: 8px solid transparent; 
-                                        border-left: 16px solid #07c160; border-bottom: 8px solid transparent;"></div>
-                        </div>
-                    </div>
-                    <img src="path/to/user/avatar.png" style="width: 48px; height: 48px; 
-                            border-radius: 50%; vertical-align: top; display: inline-block;" />  <!-- 确保图片是内联块 -->
-                </div>
-            """)
+            frame.setObjectName("user_message")
+            frame.setStyleSheet("QFrame { background-color: #e3f2fd; }")
         else:
-            # AI消息（左对齐）
-            self.chat_display.append(f"""
-                <div style="text-align: left; margin: 12px 0; overflow: hidden;">  <!-- 添加overflow:hidden -->
-                    <img src="path/to/ai/avatar.png" style="width: 48px; height: 48px; 
-                            border-radius: 50%; vertical-align: top; display: inline-block;" />  <!-- 确保图片是内联块 -->
-                    <div style="display: inline-block; text-align: left; margin-left: 12px;">
-                        <div style="font-size: 18px; font-weight: bold; color: #333;">{sender}</div>
-                        <span style="font-size: 13px; color: #666;">{timestamp}</span>
-                        <div style="display: inline-block; background-color: white; color: #333; 
-                                    border-radius: 20px; padding: 14px 20px; margin-top: 6px;
-                                    min-width: 40px;  <!-- 最小宽度 -->
-                                    max-width: 75%;  <!-- 最大宽度 -->
-                                    word-wrap: break-word; position: relative;
-                                    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-                                    font-size: 20px; line-height: 1.4;
-                                    box-sizing: border-box;  <!-- 确保内边距包含在尺寸内 -->
-                                    vertical-align: top;">  <!-- 垂直对齐顶部 -->
-                            {message}
-                            <div style="position: absolute; left: -8px; top: 16px;  <!-- 微调位置 -->
-                                        width: 0; height: 0; border-top: 8px solid transparent; 
-                                        border-right: 16px solid white; border-bottom: 8px solid transparent;"></div>
-                        </div>
-                    </div>
-                </div>
-            """)
+            frame.setObjectName("ai_message")
+            frame.setStyleSheet("QFrame { background-color: #f5f5f5; }")
+
+        # 发送者和时间戳
+        sender_label = QLabel(f"{sender}")
+        sender_label.setStyleSheet("font-size: 18px; color: #333; font-weight: bold;")
+        time_label = QLabel(f"{timestamp}")
+        time_label.setStyleSheet("font-size: 14px; color: #999;")
+        # 消息内容
+        content_label = QLabel(message)
+        content_label.setStyleSheet("font-size: 20px; color: #333;")
+        content_label.setWordWrap(True)
+        content_label.setMaximumWidth(900)
+
+        # 只设置一次布局
+        frame_layout = QVBoxLayout(frame)
+        top_row = QHBoxLayout()
+        top_row.addWidget(sender_label)
+        top_row.addWidget(time_label)
+        top_row.addStretch()
+        frame_layout.addLayout(top_row)
+        frame_layout.addWidget(content_label)
+
+        # 添加到聊天区
+        self.chat_layout.addWidget(frame)
+
+        # 滚动到最新消息
+        self.scroll_area.verticalScrollBar().setValue(
+            self.scroll_area.verticalScrollBar().maximum()
+        )
+
+    def send_message(self):
+        message = self.message_input.text().strip()
+        if message:
+            self.show_message("你", message)
+            self.message_input.clear()
+            # 显示"正在思考"
+            self.show_message("小鲸鱼", "正在思考...")
+
+            # 模拟AI回复（替换为真实API调用）
+            QTimer.singleShot(1000, lambda: self.get_doubao_response(message))
 
     def return_to_main(self):
         """发送返回主页面信号"""
         self.back_to_main.emit()
-    
-    def send_message(self):
-        """发送消息到豆包API并获取回复"""
-        message = self.message_input.text().strip()
-        if not message:
-            return
-            
-        # 显示用户消息
-        self.show_message("你", message)
-        self.message_input.clear()
-        
-        # 显示"正在思考"
-        self.show_message("豆包助手", "正在思考...")
-        
-        # 模拟调用豆包API（实际使用时需要替换为真实API调用）
-        QTimer.singleShot(1000, lambda: self.get_doubao_response(message))
-    
+
     def get_doubao_response(self, message):
         """模拟从豆包API获取回复"""
+        message += "。如果我的问题与心理有关，那么请以心理咨询师的身份与口吻解答我的问题，150字以内；如果我的问题与心理无关，则回答后将话题引向心理问题，关注隐含心理问题，150字以内"
         # 这里应该替换为真实的API调用
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                        {"role": "system", "content": "You are a helpful assistant"},
-                        {"role": "user", "content": message},
-                    ],
+                {"role": "system", "content": "You are a helpful assistant"},
+                {"role": "user", "content": message},
+            ],
             stream=False
         )
         reply_content = response.choices[0].message.content
-        self.show_message("豆包助手", reply_content)  # 只显示内容部分
+        self.show_message("小鲸鱼", reply_content)  # 只显示内容部分
 
 # 以下是我关于mzr部分的尝试：class QuestionPopup(QWidget):
 class QuestionPopup(QWidget):
@@ -808,23 +783,23 @@ class QuestionPopup(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
 
         # 顶部关闭栏
-        top_layout = QHBoxLayout()
-        close_btn = QPushButton("返回")
-        close_btn.setFixedSize(80, 35)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                border: none;
-                border-radius: 15px;
-                background-color: #e74c3c;
-                color: white;
-                font-size: 15px;
-            }
-            QPushButton:hover { background-color: #c0392b; }
-        """)
-        close_btn.clicked.connect(self.back_to_main.emit)
-        top_layout.addStretch()
-        top_layout.addWidget(close_btn)
-        layout.addLayout(top_layout)
+        # top_layout = QHBoxLayout()
+        # close_btn = QPushButton("返回")
+        # close_btn.setFixedSize(80, 35)
+        # close_btn.setStyleSheet("""
+        #     QPushButton {
+        #         border: none;
+        #         border-radius: 15px;
+        #         background-color: #e74c3c;
+        #         color: white;
+        #         font-size: 15px;
+        #     }
+        #     QPushButton:hover { background-color: #c0392b; }
+        # """)
+        # close_btn.clicked.connect(self.back_to_main.emit)
+        # top_layout.addStretch()
+        # top_layout.addWidget(close_btn)
+        # layout.addLayout(top_layout)
 
         # 常见问题标题
         title = QLabel("常见问题")
@@ -853,7 +828,7 @@ class QuestionPopup(QWidget):
         # 创建圆形问题按钮
         for idx, question in enumerate(common_questions):
             btn = QPushButton(question)
-            btn.setFixedSize(200, 40)
+            btn.setFixedSize(220, 40)
             btn.setStyleSheet(f"""
                 QPushButton {{
                     border: 2px solid #3498db;  /* 蓝色边框 */
@@ -1068,7 +1043,7 @@ class MentalHealthApp(QMainWindow):
         # 功能按钮
         buttons = [
             ("MBTI性格自测>>>", self.show_test_selection),
-            ("与豆包聊聊qwq", self.show_doubao_chat),
+            ("与小鲸鱼聊聊qwq", self.show_doubao_chat),
             ("听音乐放松一下~", self.show_relaxing_page)
         ]
         
